@@ -4,7 +4,12 @@ SET user:2 "Bob"
 SET user:3 "Charlie"
 GET user:1
 GET user:2
+EXISTS user:1
+EXISTS user:2
 INFO memory
+KEYS
+DEL user:3
+DEL user:3
 KEYS
 EXPIRE user:2 10
 TTL user:2
@@ -12,7 +17,17 @@ SET user:2 "Bobby"
 TTL user:2
 EXPIRE user:2 0
 GET user:2
+TTL user:2
 DBSIZE
+KEYS
+CONFIG SET maxmemory 0
+SET long:key "value-without-memory-limit"
+GET long:key
+CONFIG SET maxmemory 3
+SET huge value
+GET huge
+DEL long:key
+KEYS
 CONFIG SET maxmemory abc
 GET
 HELLO
