@@ -19,6 +19,7 @@ $ uv run python3 src/main.py
 ```text
 .
 ├── README.md
+├── demo_commands.txt
 ├── src
 │   ├── main.py
 │   └── mini_redis
@@ -40,7 +41,27 @@ $ uv run python3 src/main.py
 - `src/mini_redis/cli`: 명령 파싱과 REPL
 - `src/mini_redis/core/store.py`: Redis 명령 실행, 메모리 관리, LRU, TTL 처리
 - `src/mini_redis/data_structures`: 직접 구현한 해시맵, 이중 연결 리스트, 최소 힙
+- `demo_commands.txt`: 요구사항 시연 입력
 - `tests`: 요구사항 중심 pytest 테스트
+
+## 데모 데이터
+
+아래 명령으로 데모 데이터를 입력할 수 있습니다.
+
+```bash
+$ python3 src/main.py < demo_commands.txt
+```
+
+```bash
+$ uv run python3 src/main.py < demo_commands.txt
+```
+
+데모는 다음 흐름을 확인합니다.
+
+- `maxmemory` 제한 설정과 `SET`에 따른 LRU 제거
+- `GET`, `KEYS`, `DBSIZE`, `INFO memory` 조회
+- `EXPIRE`, `TTL`, `SET` 덮어쓰기 시 TTL 초기화
+- 잘못된 정수, 잘못된 인자 수, 알 수 없는 명령 오류 출력
 
 ## 지원 명령어
 

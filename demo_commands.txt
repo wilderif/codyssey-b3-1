@@ -1,0 +1,19 @@
+CONFIG SET maxmemory 30
+SET user:1 "Alice"
+SET user:2 "Bob"
+SET user:3 "Charlie"
+GET user:1
+GET user:2
+INFO memory
+KEYS
+EXPIRE user:2 10
+TTL user:2
+SET user:2 "Bobby"
+TTL user:2
+EXPIRE user:2 0
+GET user:2
+DBSIZE
+CONFIG SET maxmemory abc
+GET
+HELLO
+QUIT
