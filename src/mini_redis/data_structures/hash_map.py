@@ -5,6 +5,9 @@ from mini_redis.data_structures.doubly_linked_list import DoublyLinkedList
 
 INITIAL_CAPACITY = 8
 LOAD_FACTOR_LIMIT = 0.75
+FNV_OFFSET_BASIS = 14695981039346656037
+FNV_PRIME = 1099511628211
+MASK_64 = 0xFFFFFFFFFFFFFFFF
 
 
 class HashEntry:
@@ -17,7 +20,7 @@ class HashEntry:
 
 
 class HashMap:
-    """Custom hash map using polynomial hashing and chaining."""
+    """Custom hash map using FNV-1a 64-bit hashing and chaining."""
 
     def __init__(self):
         """Initialize buckets and entry count."""
@@ -35,12 +38,13 @@ class HashMap:
         return buckets
 
     def _hash(self, key):
-        """Return a deterministic polynomial rolling hash for a string key."""
-        text = str(key)
-        value = 0
+        """Return a deterministic FNV-1a 64-bit hash for a string key."""
+        data = str(key).encode("utf-8")
+        value = FNV_OFFSET_BASIS
         index = 0
-        while index < len(text):
-            value = (value * 131 + ord(text[index])) & 0xFFFFFFFFFFFFFFFF
+        while index < len(data):
+            value = value ^ data[index]
+            value = (value * FNV_PRIME) & MASK_64
             index += 1
         return value
 
@@ -127,4 +131,3 @@ class HashMap:
     def size(self):
         """Return the number of entries in the map."""
         return self._size
-
