@@ -115,15 +115,3 @@ for each byte:
 ```
 
 버킷 수가 `8`개라면 `17718013163177550631 % 8 = 7`이므로 `"cat"`은 7번 버킷에 저장됩니다. 충돌이 나면 같은 버킷의 이중 연결 리스트에 엔트리를 연결하는 체이닝 방식으로 해결하며, 로드 팩터가 `0.75`를 초과하면 버킷 수를 2배로 늘려 재배치합니다.
-
-## 테스트
-
-```bash
-$ python3 -m pytest
-```
-
-```bash
-$ uv run pytest
-```
-
-현재 환경에 `pytest`가 없다면 설치 후 실행해야 합니다. 테스트는 `SET`, `GET`, `DEL`, `EXISTS`, `DBSIZE`, `KEYS`, `CONFIG SET maxmemory`, `INFO memory`, `EXPIRE`, `TTL`, 오류 처리, LRU eviction, OOM, quoted value를 다룹니다.
