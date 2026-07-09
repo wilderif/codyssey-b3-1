@@ -81,20 +81,18 @@ class DoublyLinkedList:
         """Move an existing node to the front in O(1)."""
         if node is None or node is self.head:
             return
-        data = self.remove_node(node)
-        new_node = self.insert_front(data)
-        node.prev = new_node.prev
-        node.next = new_node.next
-        node.data = new_node.data
-
-        # Preserve the caller's node reference by replacing the new node.
-        if new_node.prev is not None:
-            new_node.prev.next = node
+        if node.prev is not None:
+            node.prev.next = node.next
+        if node.next is not None:
+            node.next.prev = node.prev
         else:
-            self.head = node
-        if new_node.next is not None:
-            new_node.next.prev = node
-        else:
+            self.tail = node.prev
+        node.prev = None
+        node.next = self.head
+        if self.head is not None:
+            self.head.prev = node
+        self.head = node
+        if self.tail is None:
             self.tail = node
 
     def iter_data(self):
@@ -103,4 +101,3 @@ class DoublyLinkedList:
         while current is not None:
             yield current.data
             current = current.next
-
