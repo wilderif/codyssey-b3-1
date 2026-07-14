@@ -5,6 +5,7 @@ import shlex
 from mini_redis.store import MiniRedis
 
 
+# Prompt displayed before every command read.
 PROMPT = "mini-redis> "
 
 

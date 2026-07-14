@@ -7,6 +7,7 @@ from mini_redis.data_structures.hash_map import HashMap
 from mini_redis.data_structures.min_heap import MinHeap
 
 
+# Redis-style responses shared by multiple commands.
 ERROR_INTEGER = "(error) ERR value is not an integer or out of range"
 ERROR_OOM = "(error) OOM command not allowed when used_memory > 'maxmemory'"
 OK = "OK"
