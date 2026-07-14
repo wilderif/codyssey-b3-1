@@ -55,6 +55,33 @@ def test_lru_eviction_and_memory_info():
     assert run(store, "INFO memory") == "used_memory:22\nmaxmemory:30\nevicted_keys:1"
 
 
+def test_utf8_memory_accounting_and_unlimited_mode():
+    """Memory uses UTF-8 byte lengths, and maxmemory zero stays unlimited."""
+    store = MiniRedis()
+
+    assert run(store, "CONFIG SET maxmemory 0") == "OK"
+    assert run(store, "SET 한 글") == "OK"
+    assert run(store, "INFO memory") == "used_memory:6\nmaxmemory:0\nevicted_keys:0"
+    assert run(store, "SET 한 글글") == "OK"
+    assert run(store, "INFO memory") == "used_memory:9\nmaxmemory:0\nevicted_keys:0"
+
+
+def test_lowering_maxmemory_evicts_multiple_lru_keys():
+    """A smaller limit evicts old keys until the total fits."""
+    store = MiniRedis()
+
+    assert run(store, "SET a 111") == "OK"
+    assert run(store, "SET b 22") == "OK"
+    assert run(store, "SET c 3") == "OK"
+    assert run(store, "GET a") == '"111"'
+    assert run(store, "CONFIG SET maxmemory 4") == "OK"
+
+    assert run(store, "GET a") == '"111"'
+    assert run(store, "GET b") == "(nil)"
+    assert run(store, "GET c") == "(nil)"
+    assert run(store, "INFO memory") == "used_memory:4\nmaxmemory:4\nevicted_keys:2"
+
+
 def test_get_updates_lru_order():
     """A successful GET makes that key most recently used."""
     store = MiniRedis()
@@ -110,6 +137,21 @@ def test_single_entry_oom_does_not_store_value():
     assert run(store, "SET key value") == "(error) OOM command not allowed when used_memory > 'maxmemory'"
     assert run(store, "GET key") == "(nil)"
     assert run(store, "INFO memory") == "used_memory:0\nmaxmemory:3\nevicted_keys:0"
+
+
+def test_oom_overwrite_preserves_the_existing_entry():
+    """A rejected overwrite leaves the old value, TTL, and memory untouched."""
+    clock = FakeClock()
+    store = MiniRedis(clock=clock)
+
+    assert run(store, "CONFIG SET maxmemory 8") == "OK"
+    assert run(store, "SET key old") == "OK"
+    assert run(store, "EXPIRE key 10") == "(integer) 1"
+    assert run(store, "SET key oversized") == "(error) OOM command not allowed when used_memory > 'maxmemory'"
+
+    assert run(store, "GET key") == '"old"'
+    assert run(store, "TTL key") == "(integer) 10"
+    assert run(store, "INFO memory") == "used_memory:6\nmaxmemory:8\nevicted_keys:0"
 
 
 def test_ttl_expiration_and_overwrite_clears_ttl():
@@ -191,6 +233,22 @@ def test_expired_key_behaves_like_missing_key():
     assert run(store, "DBSIZE") == "(integer) 0"
 
 
+def test_key_commands_remove_expired_entries_before_responding():
+    """EXISTS, DEL, KEYS, and INFO treat elapsed keys as missing."""
+    clock = FakeClock()
+    store = MiniRedis(clock=clock)
+
+    for key in ("exists", "delete", "listed"):
+        assert run(store, "SET " + key + " value") == "OK"
+        assert run(store, "EXPIRE " + key + " 1") == "(integer) 1"
+    clock.advance(1)
+
+    assert run(store, "EXISTS exists") == "(integer) 0"
+    assert run(store, "DEL delete") == "(integer) 0"
+    assert run(store, "KEYS") == "(empty array)"
+    assert run(store, "INFO memory") == "used_memory:0\nmaxmemory:0\nevicted_keys:0"
+
+
 def test_expire_missing_and_immediate_expire():
     """EXPIRE returns 0 for missing keys and deletes for non-positive seconds."""
     store = MiniRedis()
@@ -199,6 +257,9 @@ def test_expire_missing_and_immediate_expire():
     assert run(store, "SET temp value") == "OK"
     assert run(store, "EXPIRE temp 0") == "(integer) 1"
     assert run(store, "GET temp") == "(nil)"
+    assert run(store, "SET temp value") == "OK"
+    assert run(store, "EXPIRE temp -1") == "(integer) 1"
+    assert run(store, "TTL temp") == "(integer) -2"
 
 
 def test_error_handling():

@@ -30,7 +30,7 @@ $ uv run python3 src/main.py
 │           ├── hash_map.py
 │           └── min_heap.py
 └── tests
-    ├── conftest.py
+    ├── test_cli.py
     ├── test_data_structures.py
     └── test_required_behavior.py
 ```
@@ -41,6 +41,16 @@ $ uv run python3 src/main.py
 - `src/mini_redis/data_structures`: 직접 구현한 해시맵, 이중 연결 리스트, 최소 힙
 - `demo_commands.txt`: 요구사항 시연 입력
 - `tests`: 요구사항 중심 pytest 테스트
+
+## 테스트
+
+```bash
+$ python3 -m pytest
+```
+
+```bash
+$ uv run pytest
+```
 
 ## 데모 데이터
 
