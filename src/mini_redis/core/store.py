@@ -29,13 +29,19 @@ def redis_string(value):
 
 
 class RedisEntry:
-    """Stored string value with its accounting metadata."""
+    """All state associated with one stored key."""
 
     def __init__(self, key, value):
-        """Store key, value, and computed memory footprint."""
+        """Create an entry without LRU or TTL state."""
         self.key = key
         self.value = value
-        self.memory = len(key.encode("utf-8")) + len(value.encode("utf-8"))
+        self.lru_node = None
+        self.expire_at = None
+
+    @property
+    def memory(self):
+        """Return memory usage according to the assignment formula."""
+        return len(self.key.encode("utf-8")) + len(self.value.encode("utf-8"))
 
 
 class MiniRedis:
@@ -45,8 +51,6 @@ class MiniRedis:
         """Initialize the empty database and memory settings."""
         self._entries = HashMap()
         self._lru = DoublyLinkedList()
-        self._lru_nodes = HashMap()
-        self._expires = HashMap()
         self._expire_heap = MinHeap()
         self._clock = clock or time.time
         self.used_memory = 0
@@ -55,17 +59,23 @@ class MiniRedis:
 
     def set(self, key, value):
         """Set a string value, reset TTL, and evict by LRU when needed."""
-        self._purge_expired()
-        entry = RedisEntry(key, value)
-        if self._entry_exceeds_limit(entry):
+        entry = self._live_entry(key)
+        new_entry = RedisEntry(key, value)
+        if self.maxmemory > 0 and new_entry.memory > self.maxmemory:
             return ERROR_OOM
 
-        self._put_entry(entry)
-        self._expires.remove(key)
-        self._mark_recent(key)
+        if entry is None:
+            entry = new_entry
+            self._entries.put(key, entry)
+            entry.lru_node = self._lru.insert_front(key)
+        else:
+            self.used_memory -= entry.memory
+            entry.value = value
+            entry.expire_at = None
+            self._lru.move_to_front(entry.lru_node)
 
-        if not self._evict_until_within_limit():
-            return ERROR_OOM
+        self.used_memory += entry.memory
+        self._evict_until_within_limit()
         return OK
 
     def get(self, key):
@@ -73,19 +83,21 @@ class MiniRedis:
         entry = self._live_entry(key)
         if entry is None:
             return NIL
-        self._mark_recent(key)
+        self._lru.move_to_front(entry.lru_node)
         return redis_string(entry.value)
 
     def delete(self, key):
         """Delete a key from data, TTL, and LRU structures."""
-        if self._live_entry(key) is None:
+        entry = self._live_entry(key)
+        if entry is None:
             return redis_integer(0)
-        self._delete_key(key)
+        self._delete_entry(entry)
         return redis_integer(1)
 
     def exists(self, key):
         """Return whether a key currently exists."""
-        if self._live_entry(key) is None:
+        entry = self._live_entry(key)
+        if entry is None:
             return redis_integer(0)
         return redis_integer(1)
 
@@ -101,20 +113,17 @@ class MiniRedis:
         if len(keys) == 0:
             return EMPTY_ARRAY
         lines = []
-        index = 0
-        while index < len(keys):
-            lines.append(str(index + 1) + ". " + redis_string(keys[index]))
-            index += 1
+        for index, key in enumerate(keys, start=1):
+            lines.append(str(index) + ". " + redis_string(key))
         return "\n".join(lines)
 
     def config_set_maxmemory(self, value_text):
         """Set maxmemory after validating a non-negative integer."""
-        value = self._parse_non_negative_int(value_text)
-        if value is None:
+        value = self._parse_int(value_text)
+        if value is None or value < 0:
             return ERROR_INTEGER
         self.maxmemory = value
-        if not self._evict_until_within_limit():
-            return ERROR_OOM
+        self._evict_until_within_limit()
         return OK
 
     def info_memory(self):
@@ -133,24 +142,26 @@ class MiniRedis:
         seconds = self._parse_int(seconds_text)
         if seconds is None:
             return ERROR_INTEGER
-        if self._live_entry(key) is None:
+        entry = self._live_entry(key)
+        if entry is None:
             return redis_integer(0)
         if seconds <= 0:
-            self._delete_key(key)
+            self._delete_entry(entry)
             return redis_integer(1)
-        self._set_expire(key, seconds)
+        entry.expire_at = self._clock() + seconds
+        self._expire_heap.push((entry.expire_at, key))
         return redis_integer(1)
 
     def ttl(self, key):
         """Return Redis-style TTL status for a key."""
-        if self._live_entry(key) is None:
+        entry = self._live_entry(key)
+        if entry is None:
             return redis_integer(-2)
-        expire_at = self._expires.get(key)
-        if expire_at is None:
+        if entry.expire_at is None:
             return redis_integer(-1)
-        remaining = expire_at - self._clock()
+        remaining = entry.expire_at - self._clock()
         if remaining <= 0:
-            self._delete_key(key)
+            self._delete_entry(entry)
             return redis_integer(-2)
         return redis_integer(int(remaining))
 
@@ -166,55 +177,17 @@ class MiniRedis:
             return None
         return value
 
-    def _parse_non_negative_int(self, value_text):
-        """Parse an integer and reject negative values."""
-        value = self._parse_int(value_text)
-        if value is None or value < 0:
-            return None
-        return value
-
-    def _entry_exceeds_limit(self, entry):
-        """Return whether one entry is too large to ever fit."""
-        return self.maxmemory > 0 and entry.memory > self.maxmemory
-
-    def _put_entry(self, entry):
-        """Store an entry while keeping used_memory accurate."""
-        old_entry = self._entries.get(entry.key)
-        if old_entry is not None:
-            self.used_memory -= old_entry.memory
-        self._entries.put(entry.key, entry)
-        self.used_memory += entry.memory
-
-    def _mark_recent(self, key):
-        """Mark a key as most recently used."""
-        node = self._lru_nodes.get(key)
-        if node is None:
-            node = self._lru.insert_front(key)
-            self._lru_nodes.put(key, node)
-            return
-        self._lru.move_to_front(node)
-
-    def _set_expire(self, key, seconds):
-        """Store the active TTL and leave old heap records for lazy deletion."""
-        expire_at = self._clock() + seconds
-        self._expires.put(key, expire_at)
-        self._expire_heap.push((expire_at, key))
-
     def _live_entry(self, key):
         """Return an entry only if it exists and has not expired."""
         entry = self._entries.get(key)
-        if entry is None:
-            self._expires.remove(key)
-            return None
-        if self._is_expired(key):
-            self._delete_key(key)
+        if (
+            entry is not None
+            and entry.expire_at is not None
+            and entry.expire_at <= self._clock()
+        ):
+            self._delete_entry(entry)
             return None
         return entry
-
-    def _is_expired(self, key):
-        """Return True when key has a TTL that is already elapsed."""
-        expire_at = self._expires.get(key)
-        return expire_at is not None and expire_at <= self._clock()
 
     def _purge_expired(self):
         """Remove all currently expired keys from the TTL heap front."""
@@ -222,31 +195,21 @@ class MiniRedis:
         item = self._expire_heap.peek()
         while item is not None and item[0] <= now:
             expire_at, key = self._expire_heap.pop()
-            active_expire_at = self._expires.get(key)
-            if active_expire_at is not None and active_expire_at == expire_at:
-                self._delete_key(key)
+            entry = self._entries.get(key)
+            if entry is not None and entry.expire_at == expire_at:
+                self._delete_entry(entry)
             item = self._expire_heap.peek()
 
-    def _delete_key(self, key, count_eviction=False):
-        """Delete key from every structure and optionally count eviction."""
-        entry = self._entries.remove(key)
-        node = self._lru_nodes.remove(key)
-        if node is not None:
-            self._lru.remove_node(node)
-        self._expires.remove(key)
-        if entry is None:
-            return False
+    def _delete_entry(self, entry):
+        """Remove an entry from the hash map, LRU, and memory total."""
+        self._entries.remove(entry.key)
+        self._lru.remove_node(entry.lru_node)
         self.used_memory -= entry.memory
-        if count_eviction:
-            self.evicted_keys += 1
-        return True
 
     def _evict_until_within_limit(self):
         """Evict least recently used keys until memory is under maxmemory."""
         self._purge_expired()
         while self.maxmemory > 0 and self.used_memory > self.maxmemory:
-            key = self._lru.back()
-            if key is None:
-                return False
-            self._delete_key(key, count_eviction=True)
-        return True
+            key = self._lru.tail.data
+            self._delete_entry(self._entries.get(key))
+            self.evicted_keys += 1

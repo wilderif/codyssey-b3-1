@@ -70,6 +70,22 @@ def test_get_updates_lru_order():
     assert run(store, "GET c") == '"333"'
 
 
+def test_overwrite_updates_memory_and_lru_without_duplicate_nodes():
+    """Overwriting a key changes its size and makes the same key most recent."""
+    store = MiniRedis()
+
+    assert run(store, "CONFIG SET maxmemory 7") == "OK"
+    assert run(store, "SET a 1") == "OK"
+    assert run(store, "SET b 22") == "OK"
+    assert run(store, "SET a 333") == "OK"
+    assert run(store, "SET c 4") == "OK"
+
+    assert run(store, "GET b") == "(nil)"
+    assert run(store, "GET a") == '"333"'
+    assert run(store, "GET c") == '"4"'
+    assert run(store, "INFO memory") == "used_memory:6\nmaxmemory:7\nevicted_keys:1"
+
+
 def test_hash_map_resize_keeps_all_entries():
     """Hash map resize preserves existing keys and values."""
     store = MiniRedis()
@@ -125,6 +141,39 @@ def test_reset_expire_leaves_stale_heap_items_harmless():
     assert run(store, "DBSIZE") == "(integer) 1"
     assert run(store, "GET token") == '"alive"'
     assert run(store, "TTL token") == "(integer) 10"
+
+
+def test_deleted_key_can_be_recreated_before_old_ttl_record_expires():
+    """A stale heap record cannot delete a newly created key with the same name."""
+    clock = FakeClock()
+    store = MiniRedis(clock=clock)
+
+    assert run(store, "SET token old") == "OK"
+    assert run(store, "EXPIRE token 5") == "(integer) 1"
+    assert run(store, "DEL token") == "(integer) 1"
+    assert run(store, "SET token new") == "OK"
+    clock.advance(5)
+
+    assert run(store, "DBSIZE") == "(integer) 1"
+    assert run(store, "GET token") == '"new"'
+
+
+def test_expired_keys_are_removed_before_lru_eviction():
+    """Expiration frees memory without increasing the eviction counter."""
+    clock = FakeClock()
+    store = MiniRedis(clock=clock)
+
+    assert run(store, "CONFIG SET maxmemory 4") == "OK"
+    assert run(store, "SET a 1") == "OK"
+    assert run(store, "SET b 2") == "OK"
+    assert run(store, "EXPIRE a 1") == "(integer) 1"
+    clock.advance(1)
+    assert run(store, "SET c 3") == "OK"
+
+    assert run(store, "INFO memory") == "used_memory:4\nmaxmemory:4\nevicted_keys:0"
+    assert run(store, "GET a") == "(nil)"
+    assert run(store, "GET b") == '"2"'
+    assert run(store, "GET c") == '"3"'
 
 
 def test_expired_key_behaves_like_missing_key():
