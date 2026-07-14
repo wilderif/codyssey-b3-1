@@ -70,6 +70,22 @@ def test_get_updates_lru_order():
     assert run(store, "GET c") == '"333"'
 
 
+def test_hash_map_resize_keeps_all_entries():
+    """Hash map resize preserves existing keys and values."""
+    store = MiniRedis()
+
+    index = 0
+    while index < 12:
+        assert run(store, "SET key:" + str(index) + " value:" + str(index)) == "OK"
+        index += 1
+
+    assert run(store, "DBSIZE") == "(integer) 12"
+    index = 0
+    while index < 12:
+        assert run(store, "GET key:" + str(index)) == '"value:' + str(index) + '"'
+        index += 1
+
+
 def test_single_entry_oom_does_not_store_value():
     """A single value larger than maxmemory is rejected."""
     store = MiniRedis()
@@ -93,6 +109,22 @@ def test_ttl_expiration_and_overwrite_clears_ttl():
     assert run(store, "TTL session") == "(integer) -1"
     clock.advance(10)
     assert run(store, "GET session") == '"fresh"'
+
+
+def test_reset_expire_leaves_stale_heap_items_harmless():
+    """Old heap records do not delete a key after EXPIRE is reset."""
+    clock = FakeClock()
+    store = MiniRedis(clock=clock)
+
+    assert run(store, "SET token alive") == "OK"
+    assert run(store, "EXPIRE token 10") == "(integer) 1"
+    clock.advance(1)
+    assert run(store, "EXPIRE token 20") == "(integer) 1"
+    clock.advance(10)
+
+    assert run(store, "DBSIZE") == "(integer) 1"
+    assert run(store, "GET token") == '"alive"'
+    assert run(store, "TTL token") == "(integer) 10"
 
 
 def test_expired_key_behaves_like_missing_key():

@@ -31,10 +31,8 @@ class HashMap:
     def _make_buckets(self, capacity):
         """Create a fixed-size bucket array."""
         buckets = []
-        index = 0
-        while index < capacity:
+        for _ in range(capacity):
             buckets.append(DoublyLinkedList())
-            index += 1
         return buckets
 
     def _hash(self, key):
@@ -64,21 +62,26 @@ class HashMap:
 
     def _resize_if_needed(self):
         """Double bucket capacity after the load factor exceeds the limit."""
-        if self._size / self._capacity <= LOAD_FACTOR_LIMIT:
+        if self._size <= self._capacity * LOAD_FACTOR_LIMIT:
             return
+        self._resize(self._capacity * 2)
+
+    def _resize(self, new_capacity):
+        """Rebuild all bucket chains using a larger capacity."""
         old_buckets = self._buckets
-        self._capacity *= 2
+        self._capacity = new_capacity
         self._buckets = self._make_buckets(self._capacity)
-        old_size = self._size
         self._size = 0
-        bucket_index = 0
-        while bucket_index < len(old_buckets):
-            current = old_buckets[bucket_index].head
-            while current is not None:
-                self.put(current.data.key, current.data.value)
-                current = current.next
-            bucket_index += 1
-        self._size = old_size
+
+        for bucket in old_buckets:
+            for entry in bucket.iter_data():
+                self._insert_new_entry(entry.key, entry.value)
+
+    def _insert_new_entry(self, key, value):
+        """Insert a key known to be absent without checking for resize."""
+        bucket = self._buckets[self._bucket_index(key)]
+        bucket.insert_back(HashEntry(key, value))
+        self._size += 1
 
     def put(self, key, value):
         """Insert or update a key-value pair."""
@@ -86,9 +89,7 @@ class HashMap:
         if node is not None:
             node.data.value = value
             return False
-        bucket = self._buckets[self._bucket_index(key)]
-        bucket.insert_back(HashEntry(key, value))
-        self._size += 1
+        self._insert_new_entry(key, value)
         self._resize_if_needed()
         return True
 
@@ -119,13 +120,9 @@ class HashMap:
     def keys(self):
         """Return a list of all stored keys."""
         result = []
-        bucket_index = 0
-        while bucket_index < len(self._buckets):
-            current = self._buckets[bucket_index].head
-            while current is not None:
-                result.append(current.data.key)
-                current = current.next
-            bucket_index += 1
+        for bucket in self._buckets:
+            for entry in bucket.iter_data():
+                result.append(entry.key)
         return result
 
     def size(self):

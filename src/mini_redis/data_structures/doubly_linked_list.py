@@ -60,6 +60,12 @@ class DoublyLinkedList:
             return None
         return self.remove_node(self.tail)
 
+    def back(self):
+        """Return back node data without removing it, or None."""
+        if self.tail is None:
+            return None
+        return self.tail.data
+
     def remove_node(self, node):
         """Remove an existing node in O(1) and return its data."""
         if node is None:
