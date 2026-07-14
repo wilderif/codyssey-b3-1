@@ -30,20 +30,14 @@ class HashMap:
 
     def _make_buckets(self, capacity):
         """Create a fixed-size bucket array."""
-        buckets = []
-        for _ in range(capacity):
-            buckets.append(DoublyLinkedList())
-        return buckets
+        return [DoublyLinkedList() for _ in range(capacity)]
 
     def _hash(self, key):
         """Return a deterministic FNV-1a 64-bit hash for a string key."""
-        data = str(key).encode("utf-8")
         value = FNV_OFFSET_BASIS
-        index = 0
-        while index < len(data):
-            value = value ^ data[index]
+        for byte in str(key).encode("utf-8"):
+            value = value ^ byte
             value = (value * FNV_PRIME) & MASK_64
-            index += 1
         return value
 
     def _bucket_index(self, key):
@@ -60,28 +54,16 @@ class HashMap:
             current = current.next
         return None
 
-    def _resize_if_needed(self):
-        """Double bucket capacity after the load factor exceeds the limit."""
-        if self._size <= self._capacity * LOAD_FACTOR_LIMIT:
-            return
-        self._resize(self._capacity * 2)
-
-    def _resize(self, new_capacity):
-        """Rebuild all bucket chains using a larger capacity."""
+    def _resize(self):
+        """Double the capacity and move entries into their new buckets."""
         old_buckets = self._buckets
-        self._capacity = new_capacity
+        self._capacity *= 2
         self._buckets = self._make_buckets(self._capacity)
-        self._size = 0
 
         for bucket in old_buckets:
             for entry in bucket.iter_data():
-                self._insert_new_entry(entry.key, entry.value)
-
-    def _insert_new_entry(self, key, value):
-        """Insert a key known to be absent without checking for resize."""
-        bucket = self._buckets[self._bucket_index(key)]
-        bucket.insert_back(HashEntry(key, value))
-        self._size += 1
+                new_bucket = self._buckets[self._bucket_index(entry.key)]
+                new_bucket.insert_back(entry)
 
     def put(self, key, value):
         """Insert or update a key-value pair."""
@@ -89,8 +71,11 @@ class HashMap:
         if node is not None:
             node.data.value = value
             return False
-        self._insert_new_entry(key, value)
-        self._resize_if_needed()
+        bucket = self._buckets[self._bucket_index(key)]
+        bucket.insert_back(HashEntry(key, value))
+        self._size += 1
+        if self._size > self._capacity * LOAD_FACTOR_LIMIT:
+            self._resize()
         return True
 
     def get(self, key):
@@ -102,16 +87,13 @@ class HashMap:
 
     def remove(self, key):
         """Remove key and return its value, or None if missing."""
+        node = self._find_node(key)
+        if node is None:
+            return None
         bucket = self._buckets[self._bucket_index(key)]
-        current = bucket.head
-        while current is not None:
-            if current.data.key == key:
-                value = current.data.value
-                bucket.remove_node(current)
-                self._size -= 1
-                return value
-            current = current.next
-        return None
+        entry = bucket.remove_node(node)
+        self._size -= 1
+        return entry.value
 
     def contains(self, key):
         """Return True when key exists in the map."""

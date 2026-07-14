@@ -19,18 +19,18 @@ class MinHeap:
 
     def pop(self):
         """Remove and return the smallest item, or None when empty."""
-        if len(self._items) == 0:
+        if not self._items:
             return None
         root = self._items[0]
         last = self._items.pop()
-        if len(self._items) > 0:
+        if self._items:
             self._items[0] = last
             self._heapify_down(0)
         return root
 
     def peek(self):
         """Return the smallest item without removing it."""
-        if len(self._items) == 0:
+        if not self._items:
             return None
         return self._items[0]
 
@@ -62,4 +62,3 @@ class MinHeap:
     def _swap(self, left, right):
         """Swap two heap positions."""
         self._items[left], self._items[right] = self._items[right], self._items[left]
-
