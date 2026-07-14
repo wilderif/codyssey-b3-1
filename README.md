@@ -23,23 +23,21 @@ $ uv run python3 src/main.py
 ├── src
 │   ├── main.py
 │   └── mini_redis
-│       ├── cli
-│       │   ├── parser.py
-│       │   └── repl.py
-│       ├── core
-│       │   └── store.py
+│       ├── cli.py
+│       ├── store.py
 │       └── data_structures
 │           ├── doubly_linked_list.py
 │           ├── hash_map.py
 │           └── min_heap.py
 └── tests
     ├── conftest.py
+    ├── test_data_structures.py
     └── test_required_behavior.py
 ```
 
 - `src/main.py`: CLI 엔트리 포인트
-- `src/mini_redis/cli`: 명령 파싱과 REPL
-- `src/mini_redis/core/store.py`: Redis 명령 실행, 메모리 관리, LRU, TTL 처리
+- `src/mini_redis/cli.py`: 명령 파싱과 REPL
+- `src/mini_redis/store.py`: Redis 명령 실행, 메모리 관리, LRU, TTL 처리
 - `src/mini_redis/data_structures`: 직접 구현한 해시맵, 이중 연결 리스트, 최소 힙
 - `demo_commands.txt`: 요구사항 시연 입력
 - `tests`: 요구사항 중심 pytest 테스트

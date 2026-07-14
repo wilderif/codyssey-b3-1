@@ -1,7 +1,7 @@
 """Required behavior tests for the Mini Redis assignment."""
 
-from mini_redis.cli.parser import execute_command
-from mini_redis.core.store import MiniRedis
+from mini_redis.cli import execute_command
+from mini_redis.store import MiniRedis
 
 
 class FakeClock:
