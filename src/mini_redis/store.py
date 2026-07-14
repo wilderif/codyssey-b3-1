@@ -20,7 +20,7 @@ MAX_INTEGER = (1 << 63) - 1
 
 def redis_integer(value):
     """Format an integer result in Redis style."""
-    return "(integer) " + str(value)
+    return f"(integer) {value}"
 
 
 def redis_string(value):
@@ -69,6 +69,7 @@ class MiniRedis:
             self._entries.put(key, entry)
             entry.lru_node = self._lru.insert_front(key)
         else:
+            # Account for the old value before replacing it with the new one.
             self.used_memory -= entry.memory
             entry.value = value
             entry.expire_at = None
@@ -114,7 +115,7 @@ class MiniRedis:
             return EMPTY_ARRAY
         lines = []
         for index, key in enumerate(keys, start=1):
-            lines.append(str(index) + ". " + redis_string(key))
+            lines.append(f"{index}. {redis_string(key)}")
         return "\n".join(lines)
 
     def config_set_maxmemory(self, value_text):
@@ -131,9 +132,9 @@ class MiniRedis:
         self._purge_expired()
         return "\n".join(
             [
-                "used_memory:" + str(self.used_memory),
-                "maxmemory:" + str(self.maxmemory),
-                "evicted_keys:" + str(self.evicted_keys),
+                f"used_memory:{self.used_memory}",
+                f"maxmemory:{self.maxmemory}",
+                f"evicted_keys:{self.evicted_keys}",
             ]
         )
 
@@ -180,14 +181,14 @@ class MiniRedis:
     def _live_entry(self, key):
         """Return an entry only if it exists and has not expired."""
         entry = self._entries.get(key)
-        if (
-            entry is not None
-            and entry.expire_at is not None
-            and entry.expire_at <= self._clock()
-        ):
-            self._delete_entry(entry)
+        if entry is None:
             return None
-        return entry
+        if entry.expire_at is None:
+            return entry
+        if entry.expire_at > self._clock():
+            return entry
+        self._delete_entry(entry)
+        return None
 
     def _purge_expired(self):
         """Remove all currently expired keys from the TTL heap front."""
@@ -196,6 +197,7 @@ class MiniRedis:
         while item is not None and item[0] <= now:
             expire_at, key = self._expire_heap.pop()
             entry = self._entries.get(key)
+            # A different timestamp means this is an older, stale heap record.
             if entry is not None and entry.expire_at == expire_at:
                 self._delete_entry(entry)
             item = self._expire_heap.peek()
@@ -210,6 +212,7 @@ class MiniRedis:
         """Evict least recently used keys until memory is under maxmemory."""
         self._purge_expired()
         while self.maxmemory > 0 and self.used_memory > self.maxmemory:
+            # The linked-list tail is the least recently used key.
             key = self._lru.tail.data
             self._delete_entry(self._entries.get(key))
             self.evicted_keys += 1

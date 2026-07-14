@@ -37,27 +37,33 @@ class MinHeap:
     def _heapify_up(self, index):
         """Move an item upward until parent order is valid."""
         while index > 0:
-            parent = (index - 1) // 2
-            if not self._items[index] < self._items[parent]:
+            parent_index = (index - 1) // 2
+            if not self._items[index] < self._items[parent_index]:
                 break
-            self._swap(index, parent)
-            index = parent
+            self._swap(index, parent_index)
+            index = parent_index
 
     def _heapify_down(self, index):
         """Move an item downward until child order is valid."""
-        size = len(self._items)
+        item_count = len(self._items)
         while True:
-            left = index * 2 + 1
-            right = index * 2 + 2
-            smallest = index
-            if left < size and self._items[left] < self._items[smallest]:
-                smallest = left
-            if right < size and self._items[right] < self._items[smallest]:
-                smallest = right
-            if smallest == index:
+            left_index = index * 2 + 1
+            right_index = index * 2 + 2
+            smallest_index = index
+            if (
+                left_index < item_count
+                and self._items[left_index] < self._items[smallest_index]
+            ):
+                smallest_index = left_index
+            if (
+                right_index < item_count
+                and self._items[right_index] < self._items[smallest_index]
+            ):
+                smallest_index = right_index
+            if smallest_index == index:
                 break
-            self._swap(index, smallest)
-            index = smallest
+            self._swap(index, smallest_index)
+            index = smallest_index
 
     def _swap(self, left, right):
         """Swap two heap positions."""

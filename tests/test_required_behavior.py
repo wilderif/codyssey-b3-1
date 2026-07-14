@@ -117,16 +117,12 @@ def test_hash_map_resize_keeps_all_entries():
     """Hash map resize preserves existing keys and values."""
     store = MiniRedis()
 
-    index = 0
-    while index < 12:
+    for index in range(12):
         assert run(store, "SET key:" + str(index) + " value:" + str(index)) == "OK"
-        index += 1
 
     assert run(store, "DBSIZE") == "(integer) 12"
-    index = 0
-    while index < 12:
+    for index in range(12):
         assert run(store, "GET key:" + str(index)) == '"value:' + str(index) + '"'
-        index += 1
 
 
 def test_single_entry_oom_does_not_store_value():

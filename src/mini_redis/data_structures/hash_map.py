@@ -3,8 +3,11 @@
 from mini_redis.data_structures.doubly_linked_list import DoublyLinkedList
 
 
+# The bucket array doubles only after the load factor exceeds 0.75.
 INITIAL_CAPACITY = 8
 LOAD_FACTOR_LIMIT = 0.75
+
+# FNV-1a 64-bit constants keep the custom hash deterministic.
 FNV_OFFSET_BASIS = 14695981039346656037
 FNV_PRIME = 1099511628211
 MASK_64 = 0xFFFFFFFFFFFFFFFF
@@ -34,11 +37,11 @@ class HashMap:
 
     def _hash(self, key):
         """Return a deterministic FNV-1a 64-bit hash for a string key."""
-        value = FNV_OFFSET_BASIS
+        hash_value = FNV_OFFSET_BASIS
         for byte in str(key).encode("utf-8"):
-            value = value ^ byte
-            value = (value * FNV_PRIME) & MASK_64
-        return value
+            hash_value = hash_value ^ byte
+            hash_value = (hash_value * FNV_PRIME) & MASK_64
+        return hash_value
 
     def _bucket_index(self, key):
         """Return the bucket index for a key."""
