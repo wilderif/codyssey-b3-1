@@ -13,6 +13,10 @@ OK = "OK"
 NIL = "(nil)"
 EMPTY_ARRAY = "(empty array)"
 
+# Redis integer arguments use the signed 64-bit range.
+MIN_INTEGER = -(1 << 63)
+MAX_INTEGER = (1 << 63) - 1
+
 
 def redis_integer(value):
     """Format an integer result in Redis style."""
@@ -151,13 +155,16 @@ class MiniRedis:
         return redis_integer(int(remaining))
 
     def _parse_int(self, value_text):
-        """Parse a decimal integer without accepting floats or empty input."""
+        """Parse a signed 64-bit decimal integer."""
         if value_text is None or value_text == "":
             return None
         try:
-            return int(value_text)
+            value = int(value_text)
         except (TypeError, ValueError):
             return None
+        if value < MIN_INTEGER or value > MAX_INTEGER:
+            return None
+        return value
 
     def _parse_non_negative_int(self, value_text):
         """Parse an integer and reject negative values."""

@@ -5,19 +5,17 @@ import shlex
 
 def parse_line(line):
     """Split an input line while allowing quoted values."""
-    try:
-        return shlex.split(line)
-    except ValueError as exc:
-        return ["__parse_error__", str(exc)]
+    return shlex.split(line)
 
 
 def execute_command(store, line):
     """Parse and execute one command line against a MiniRedis store."""
-    parts = parse_line(line)
+    try:
+        parts = parse_line(line)
+    except ValueError as error:
+        return "(error) ERR " + str(error)
     if len(parts) == 0:
         return ""
-    if parts[0] == "__parse_error__":
-        return "(error) ERR " + parts[1]
     command = parts[0].upper()
 
     if command == "SET":
@@ -70,4 +68,3 @@ def execute_command(store, line):
 def _wrong_args(command):
     """Return a Redis-style wrong-arity error."""
     return "(error) ERR wrong number of arguments for '" + command + "' command"
-

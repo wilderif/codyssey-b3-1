@@ -161,3 +161,23 @@ def test_error_handling():
     assert run(store, "CONFIG SET maxmemory abc") == "(error) ERR value is not an integer or out of range"
     assert run(store, "CONFIG SET maxmemory -1") == "(error) ERR value is not an integer or out of range"
     assert run(store, "EXPIRE key abc") == "(error) ERR value is not an integer or out of range"
+
+
+def test_out_of_range_integers_return_an_error():
+    """Integer arguments outside the signed 64-bit range do not crash the CLI."""
+    store = MiniRedis()
+    too_large = str(1 << 63)
+    too_small = str(-(1 << 63) - 1)
+
+    assert run(store, "CONFIG SET maxmemory " + too_large) == "(error) ERR value is not an integer or out of range"
+    assert run(store, "SET key value") == "OK"
+    assert run(store, "EXPIRE key " + too_large) == "(error) ERR value is not an integer or out of range"
+    assert run(store, "EXPIRE key " + too_small) == "(error) ERR value is not an integer or out of range"
+
+
+def test_parser_errors_and_similar_command_names_are_safe():
+    """Malformed quotes are errors, while ordinary input cannot mimic one."""
+    store = MiniRedis()
+
+    assert run(store, 'SET key "unfinished') == "(error) ERR No closing quotation"
+    assert run(store, "__parse_error__") == "(error) ERR unknown command '__parse_error__'"
