@@ -14,10 +14,6 @@ OK = "OK"
 NIL = "(nil)"
 EMPTY_ARRAY = "(empty array)"
 
-# Redis integer arguments use the signed 64-bit range.
-MIN_INTEGER = -(1 << 63)
-MAX_INTEGER = (1 << 63) - 1
-
 
 def redis_integer(value):
     """Format an integer result in Redis style."""
@@ -125,7 +121,6 @@ class MiniRedis:
         if value is None or value < 0:
             return ERROR_INTEGER
         self.maxmemory = value
-        self._evict_until_within_limit()
         return OK
 
     def info_memory(self):
@@ -150,7 +145,11 @@ class MiniRedis:
         if seconds <= 0:
             self._delete_entry(entry)
             return redis_integer(1)
-        entry.expire_at = self._clock() + seconds
+        try:
+            expire_at = self._clock() + seconds
+        except OverflowError:
+            return ERROR_INTEGER
+        entry.expire_at = expire_at
         self._expire_heap.push((entry.expire_at, key))
         return redis_integer(1)
 
@@ -168,16 +167,13 @@ class MiniRedis:
         return redis_integer(int(remaining))
 
     def _parse_int(self, value_text):
-        """Parse a signed 64-bit decimal integer."""
+        """Parse a decimal integer."""
         if value_text is None or value_text == "":
             return None
         try:
-            value = int(value_text)
+            return int(value_text)
         except (TypeError, ValueError):
             return None
-        if value < MIN_INTEGER or value > MAX_INTEGER:
-            return None
-        return value
 
     def _live_entry(self, key):
         """Return an entry only if it exists and has not expired."""

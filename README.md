@@ -67,7 +67,7 @@ $ uv run python3 src/main.py < demo_commands.txt
 데모는 다음 흐름을 확인합니다.
 
 - `SET`, `GET`, `DEL`, `EXISTS`, `DBSIZE`, `KEYS` 기본 명령
-- `maxmemory` 제한 설정, `SET`과 제한 축소에 따른 LRU 제거, 단일 엔트리 OOM
+- `maxmemory` 제한 설정, `SET`에 따른 LRU 제거, 단일 엔트리 OOM
 - `CONFIG SET maxmemory 0` 무제한 설정과 `INFO memory` 조회
 - `EXPIRE`, `TTL`, `SET` 덮어쓰기 시 TTL 초기화, 즉시 만료
 - 빈 데이터베이스의 `KEYS` 출력

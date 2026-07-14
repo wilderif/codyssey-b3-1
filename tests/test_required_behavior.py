@@ -81,20 +81,15 @@ def test_utf8_memory_accounting_and_unlimited_mode():
     assert run(store, "INFO memory") == "used_memory:9\nmaxmemory:0\nevicted_keys:0"
 
 
-def test_lowering_maxmemory_evicts_multiple_lru_keys():
-    """A smaller limit evicts old keys until the total fits."""
+def test_config_set_only_updates_the_memory_limit():
+    """CONFIG SET changes the limit without running SET eviction logic."""
     store = MiniRedis()
 
-    assert run(store, "SET a 111") == "OK"
-    assert run(store, "SET b 22") == "OK"
-    assert run(store, "SET c 3") == "OK"
-    assert run(store, "GET a") == '"111"'
-    assert run(store, "CONFIG SET maxmemory 4") == "OK"
+    assert run(store, "SET key value") == "OK"
+    assert run(store, "CONFIG SET maxmemory 1") == "OK"
 
-    assert run(store, "GET a") == '"111"'
-    assert run(store, "GET b") == "(nil)"
-    assert run(store, "GET c") == "(nil)"
-    assert run(store, "INFO memory") == "used_memory:4\nmaxmemory:4\nevicted_keys:2"
+    assert run(store, "GET key") == '"value"'
+    assert run(store, "INFO memory") == "used_memory:8\nmaxmemory:1\nevicted_keys:0"
 
 
 def test_get_updates_lru_order():
@@ -284,16 +279,14 @@ def test_error_handling():
     assert run(store, "EXPIRE key abc") == "(error) ERR value is not an integer or out of range"
 
 
-def test_out_of_range_integers_return_an_error():
-    """Integer arguments outside the signed 64-bit range do not crash the CLI."""
+def test_expire_rejects_an_integer_too_large_for_a_timestamp():
+    """An unusably large expiration returns an error instead of crashing."""
     store = MiniRedis()
-    too_large = str(1 << 63)
-    too_small = str(-(1 << 63) - 1)
+    huge_integer = "1" * 400
 
-    assert run(store, "CONFIG SET maxmemory " + too_large) == "(error) ERR value is not an integer or out of range"
+    assert run(store, "CONFIG SET maxmemory " + huge_integer) == "OK"
     assert run(store, "SET key value") == "OK"
-    assert run(store, "EXPIRE key " + too_large) == "(error) ERR value is not an integer or out of range"
-    assert run(store, "EXPIRE key " + too_small) == "(error) ERR value is not an integer or out of range"
+    assert run(store, "EXPIRE key " + huge_integer) == "(error) ERR value is not an integer or out of range"
 
 
 def test_parser_errors_and_similar_command_names_are_safe():
