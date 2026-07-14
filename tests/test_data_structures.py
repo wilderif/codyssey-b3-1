@@ -43,9 +43,11 @@ def test_hash_map_chaining_update_remove_and_resize():
     """Collisions chain correctly and resizing preserves every entry."""
     table = CollisionHashMap()
 
-    for index in range(7):
+    for index in range(6):
         assert table.put("key:" + str(index), "value:" + str(index)) is True
 
+    assert table._capacity == 8
+    assert table.put("key:6", "value:6") is True
     assert table._capacity == 16
     assert table.size() == 7
     assert table.put("key:3", "updated") is False

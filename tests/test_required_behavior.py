@@ -55,6 +55,21 @@ def test_lru_eviction_and_memory_info():
     assert run(store, "INFO memory") == "used_memory:22\nmaxmemory:30\nevicted_keys:1"
 
 
+def test_set_evicts_lru_keys_until_the_new_entry_fits():
+    """One SET can evict multiple old keys until memory is within the limit."""
+    store = MiniRedis()
+
+    assert run(store, "CONFIG SET maxmemory 5") == "OK"
+    assert run(store, "SET a 1") == "OK"
+    assert run(store, "SET b 2") == "OK"
+    assert run(store, "SET c 3333") == "OK"
+
+    assert run(store, "GET a") == "(nil)"
+    assert run(store, "GET b") == "(nil)"
+    assert run(store, "GET c") == '"3333"'
+    assert run(store, "INFO memory") == "used_memory:5\nmaxmemory:5\nevicted_keys:2"
+
+
 def test_utf8_memory_accounting_and_unlimited_mode():
     """Memory uses UTF-8 byte lengths, and maxmemory zero stays unlimited."""
     store = MiniRedis()
