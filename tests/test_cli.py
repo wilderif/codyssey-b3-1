@@ -57,3 +57,19 @@ def test_repl_stops_cleanly_on_end_of_input():
 
     assert prompts == [PROMPT]
     assert outputs == []
+
+
+def test_repl_stops_cleanly_on_keyboard_interrupt():
+    """A keyboard interrupt exits without propagating an exception."""
+    prompts = []
+    outputs = []
+
+    def interrupt_input(prompt):
+        """Record the prompt and simulate Ctrl+C during input."""
+        prompts.append(prompt)
+        raise KeyboardInterrupt
+
+    run_repl(input_func=interrupt_input, output_func=outputs.append)
+
+    assert prompts == [PROMPT]
+    assert outputs == [""]

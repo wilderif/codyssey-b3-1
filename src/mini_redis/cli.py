@@ -78,12 +78,16 @@ def _wrong_args(command):
 
 
 def run_repl(input_func=input, output_func=print):
-    """Run the interactive command loop until exit, quit, or EOF."""
+    """Run the command loop until a command or input interruption stops it."""
     store = MiniRedis()
     while True:
         try:
             line = input_func(PROMPT)
         except EOFError:
+            break
+        except KeyboardInterrupt:
+            # Finish the interrupted prompt line before returning to the shell.
+            output_func("")
             break
 
         result = execute_command(store, line)

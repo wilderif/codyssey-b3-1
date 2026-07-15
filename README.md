@@ -12,7 +12,7 @@ $ python3 src/main.py
 $ uv run python3 src/main.py
 ```
 
-프롬프트는 `mini-redis>`이며 `exit` 또는 `quit`으로 종료합니다.
+프롬프트는 `mini-redis>`이며 `exit`, `quit`, `Ctrl+C`, `Ctrl+D`로 종료합니다.
 
 ## 폴더 구조
 
