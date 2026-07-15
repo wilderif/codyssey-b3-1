@@ -57,7 +57,7 @@ $ uv run python3 src/main.py < demo_commands.txt
 데모는 다음 흐름을 확인합니다.
 
 - `SET`, `GET`, `DEL`, `EXISTS`, `DBSIZE`, `KEYS` 기본 명령
-- `maxmemory` 제한 설정, `SET`에 따른 LRU 제거, 단일 엔트리 OOM
+- `maxmemory` 제한 설정, `SET`과 제한 축소에 따른 LRU 제거, 단일 엔트리 OOM
 - `CONFIG SET maxmemory 0` 무제한 설정과 `INFO memory` 조회
 - `EXPIRE`, `TTL`, `SET` 덮어쓰기 시 TTL 초기화, 즉시 만료
 - 빈 데이터베이스의 `KEYS` 출력
@@ -71,7 +71,7 @@ $ uv run python3 src/main.py < demo_commands.txt
 - `EXISTS <key>`: 키 존재 여부를 반환합니다.
 - `DBSIZE`: 현재 저장된 키 개수를 반환합니다.
 - `KEYS`: 전체 키 목록을 출력합니다.
-- `CONFIG SET maxmemory <bytes>`: 최대 메모리를 바이트 단위로 설정합니다. `0`은 무제한입니다.
+- `CONFIG SET maxmemory <bytes>`: 최대 메모리를 바이트 단위로 설정합니다. 새 제한을 초과한 기존 키는 즉시 LRU 순서로 제거하며, `0`은 무제한입니다.
 - `INFO memory`: `used_memory`, `maxmemory`, `evicted_keys`를 출력합니다.
 - `EXPIRE <key> <seconds>`: 키 만료 시간을 설정합니다.
 - `TTL <key>`: 남은 TTL을 조회합니다.
@@ -108,7 +108,7 @@ mini-redis> TTL user:2
 
 `used_memory`는 과제 기준에 맞춰 `len(utf8(key)) + len(utf8(value))`의 합으로 계산합니다. 노드, 포인터, 버킷 같은 자료구조 오버헤드는 포함하지 않습니다.
 
-`maxmemory`가 `0`보다 크고 `SET` 이후 `used_memory`가 제한을 넘으면, 이중 연결 리스트의 꼬리부터 가장 오래 사용되지 않은 키를 제거합니다. `SET`과 성공한 `GET`은 해당 키를 리스트의 앞으로 이동시켜 최근 사용으로 표시합니다.
+`maxmemory`가 `0`보다 크고 `SET` 이후 또는 `CONFIG SET maxmemory`로 제한을 낮춘 직후 `used_memory`가 제한을 넘으면, 이중 연결 리스트의 꼬리부터 가장 오래 사용되지 않은 키를 제한 이하가 될 때까지 제거합니다. `SET`과 성공한 `GET`은 해당 키를 리스트의 앞으로 이동시켜 최근 사용으로 표시합니다.
 
 ## TTL
 

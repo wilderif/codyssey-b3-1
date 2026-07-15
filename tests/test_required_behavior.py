@@ -81,15 +81,20 @@ def test_utf8_memory_accounting_and_unlimited_mode():
     assert run(store, "INFO memory") == "used_memory:9\nmaxmemory:0\nevicted_keys:0"
 
 
-def test_config_set_only_updates_the_memory_limit():
-    """CONFIG SET changes the limit without running SET eviction logic."""
+def test_config_set_evicts_lru_keys_until_within_the_new_limit():
+    """A lower maxmemory limit immediately evicts LRU keys as needed."""
     store = MiniRedis()
 
-    assert run(store, "SET key value") == "OK"
-    assert run(store, "CONFIG SET maxmemory 1") == "OK"
+    assert run(store, "SET a 1") == "OK"
+    assert run(store, "SET b 22") == "OK"
+    assert run(store, "SET c 333") == "OK"
+    assert run(store, "GET a") == '"1"'
+    assert run(store, "CONFIG SET maxmemory 4") == "OK"
 
-    assert run(store, "GET key") == '"value"'
-    assert run(store, "INFO memory") == "used_memory:8\nmaxmemory:1\nevicted_keys:0"
+    assert run(store, "GET a") == '"1"'
+    assert run(store, "GET b") == "(nil)"
+    assert run(store, "GET c") == "(nil)"
+    assert run(store, "INFO memory") == "used_memory:2\nmaxmemory:4\nevicted_keys:2"
 
 
 def test_get_updates_lru_order():

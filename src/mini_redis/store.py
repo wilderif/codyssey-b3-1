@@ -116,11 +116,12 @@ class MiniRedis:
         return "\n".join(lines)
 
     def config_set_maxmemory(self, value_text):
-        """Set maxmemory after validating a non-negative integer."""
+        """Set maxmemory and evict LRU keys that exceed the new limit."""
         value = self._parse_int(value_text)
         if value is None or value < 0:
             return ERROR_INTEGER
         self.maxmemory = value
+        self._evict_until_within_limit()
         return OK
 
     def info_memory(self):
