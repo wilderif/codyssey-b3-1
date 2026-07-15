@@ -42,16 +42,6 @@ $ uv run python3 src/main.py
 - `demo_commands.txt`: 요구사항 시연 입력
 - `tests`: 요구사항 중심 pytest 테스트
 
-## 테스트
-
-```bash
-$ python3 -m pytest
-```
-
-```bash
-$ uv run pytest
-```
-
 ## 데모 데이터
 
 아래 명령으로 데모 데이터를 입력할 수 있습니다.
