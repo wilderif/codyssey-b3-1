@@ -1,0 +1,89 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor and IDE state
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+.envrc
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+id_rsa
+id_ed25519
+
+# Logs
+*.log
+*.out
+*.err
+
+# Local databases and runtime state
+*.sqlite
+*.sqlite3
+*.db
+*.pid
+*.pid.lock
+
+# Caches and temp files
+.cache/
+.tmp/
+tmp/
+temp/
+
+# Tool-generated local files
+.direnv/
+
+# Terraform working directories and local state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Saved Terraform plans (use .tfplan for custom plan names)
+*.tfplan
+*.tfplan.*
+tfplan
+
+# Local Terraform variables; examples must contain no secrets
+*.tfvars
+*.tfvars.json
+!example.tfvars
+!example.tfvars.json
+
+# Local Terraform overrides and CLI configuration
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Terraform crash reports
+crash.log
+crash.*.log
+
+# Keep .terraform.lock.hcl tracked for reproducible provider versions
+
+# Local agent artifacts
+.agents/
+.codex/
+.claude/
+.gstack/
+
+# Agent
+tmp.md
+AGENTS.md
+.agent/
+tmp.md
