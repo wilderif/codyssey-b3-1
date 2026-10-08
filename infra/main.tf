@@ -67,7 +67,7 @@ resource "aws_security_group" "web" {
 
   # Accept SSH only from the supplied learner IPv4 /32.
   ingress {
-    description = "SSH from the learner's IPv4 /32"
+    description = "SSH from the learner IPv4 /32"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
