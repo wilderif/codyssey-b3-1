@@ -53,7 +53,7 @@ resource "aws_route_table_association" "public" {
 # Control traffic at the instance: public HTTP, restricted SSH, and outbound internet.
 resource "aws_security_group" "web" {
   name        = "codyssey-b3-1-web"
-  description = "Public HTTP and SSH from the learner's IPv4 address only."
+  description = "Public HTTP and SSH from one learner IPv4 address."
   vpc_id      = aws_vpc.web.id
 
   # Accept web requests from any IPv4 address on TCP port 80 only.
