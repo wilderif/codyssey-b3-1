@@ -75,3 +75,80 @@ resource "aws_security_group" "web" {
     Name = "codyssey-b3-1-web-sg"
   }
 }
+
+data "aws_ami" "ubuntu" {
+  most_recent = true
+  owners      = ["099720109477"]
+
+  filter {
+    name   = "name"
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
+resource "aws_key_pair" "web" {
+  key_name   = "codyssey-b3-1-web"
+  public_key = trimspace(file(pathexpand(var.public_key_path)))
+
+  tags = {
+    Name = "codyssey-b3-1-web-key"
+  }
+}
+
+resource "aws_instance" "web" {
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.public.id
+  vpc_security_group_ids      = [aws_security_group.web.id]
+  key_name                    = aws_key_pair.web.key_name
+  associate_public_ip_address = true
+  user_data                   = file("${path.module}/user_data.sh")
+  user_data_replace_on_change = true
+
+  root_block_device {
+    volume_type           = "gp3"
+    volume_size           = 8
+    encrypted             = true
+    delete_on_termination = true
+
+    tags = {
+      Name    = "codyssey-b3-1-root-volume"
+      Project = "codyssey-b3-1"
+    }
+  }
+
+  credit_specification {
+    cpu_credits = "standard"
+  }
+
+  metadata_options {
+    http_tokens = "required"
+  }
+
+  # Package installation needs the Internet Gateway route before boot.
+  depends_on = [aws_route_table_association.public]
+
+  tags = {
+    Name = "codyssey-b3-1-web"
+  }
+}
